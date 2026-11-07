@@ -22,5 +22,6 @@
 
   <modules>
     <module>contracts</module>
+    <module>order-service</module>
   </modules>
 </project>
