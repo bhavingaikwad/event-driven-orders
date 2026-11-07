@@ -12,3 +12,17 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        max.block.ms: 3000
+        request.timeout.ms: 2000
+        delivery.timeout.ms: 4000
+
+orders:
+  # OUTBOX = correct. DUAL_WRITE = deliberately unsafe, kept only to demonstrate the failure.
+  publish-mode: OUTBOX

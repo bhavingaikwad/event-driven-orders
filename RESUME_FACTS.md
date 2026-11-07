@@ -6,16 +6,19 @@ Stock levels and payment outcomes are SIMULATED.
 - Repo: https://github.com/bhavingaikwad/event-driven-orders
 
 ## Stack (verified on my machine)
-- Java 21 (Temurin 21.0.13), Maven 3.10.0, Spring Boot 4.0.8, Flyway 11.14.1, PostgreSQL 16 (Docker)
+- Java 21 (Temurin 21.0.13), Maven 3.10.0, Spring Boot 4.0.8, Flyway 11.14.1
+- PostgreSQL 16 and Kafka 3.9.0 (KRaft) in Docker
 
 ## Measured numbers
-- contracts module: 7 event types, 9 unit tests, 0 failures (M1)
-- order-service: 6 unit tests (order state machine), 0 failures (M2)
-- Total unit tests passing so far: 15
-- order-service REST verified manually against local Postgres: POST /orders 201, GET /orders/{id} 200, unknown id 404, empty items 400
+- Unit tests passing: 17 (contracts 9, order-service 8), 0 failures (as of M3)
+- order-service REST verified manually: POST /orders 201, GET /orders/{id} 200, unknown id 404, empty items 400
+- Dual-write demo (Kafka stopped, 3 orders, single manual run on a laptop): 3 of 3 requests returned HTTP 500 (3.0 to 3.4 s each), yet all 3 orders were committed to Postgres and 0 events reached Kafka
+- Outbox demo (same setup): 3 of 3 requests returned HTTP 201 (0.005 to 0.162 s each); 3 outbox rows waited unpublished, then all 3 events reached Kafka after Kafka restarted, with no manual step
 
 ## Incidents
-(none yet)
+- Real issue (M2): order-service failed to start with "role app does not exist". A Postgres on my Mac was listening on localhost:5432 ahead of Docker's. Diagnosed with lsof, fixed by moving the Docker Postgres to host port 5433.
+- Injected failure (M3): stopped Kafka while creating orders; showed the dual-write loss, then fixed it with the transactional outbox.
 
 ## Not built / not claimed
 - No automated integration tests yet (planned for M12)
+- Delivery is at-least-once, not exactly-once; idempotent consumers come in M7
