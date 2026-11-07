@@ -29,10 +29,11 @@ public class SagaEventsListener {
     public void onInventoryEvent(String json) {
         String type = mapper.readValue(json, EnvelopeHeader.class).eventType();
         if (EventType.STOCK_RESERVED.typeName().equals(type)) {
-            saga.onStockReserved(payloadOf(json, StockReserved.class).orderId());
+            EventEnvelope<StockReserved> event = envelopeOf(json, StockReserved.class);
+            saga.onStockReserved(event.eventId(), event.payload().orderId());
         } else if (EventType.STOCK_REJECTED.typeName().equals(type)) {
-            StockRejected rejected = payloadOf(json, StockRejected.class);
-            saga.onStockRejected(rejected.orderId(), rejected.reason());
+            EventEnvelope<StockRejected> event = envelopeOf(json, StockRejected.class);
+            saga.onStockRejected(event.eventId(), event.payload().orderId(), event.payload().reason());
         }
     }
 
@@ -40,16 +41,16 @@ public class SagaEventsListener {
     public void onPaymentEvent(String json) {
         String type = mapper.readValue(json, EnvelopeHeader.class).eventType();
         if (EventType.PAYMENT_SUCCEEDED.typeName().equals(type)) {
-            saga.onPaymentSucceeded(payloadOf(json, PaymentSucceeded.class).orderId());
+            EventEnvelope<PaymentSucceeded> event = envelopeOf(json, PaymentSucceeded.class);
+            saga.onPaymentSucceeded(event.eventId(), event.payload().orderId());
         } else if (EventType.PAYMENT_FAILED.typeName().equals(type)) {
-            PaymentFailed failed = payloadOf(json, PaymentFailed.class);
-            saga.onPaymentFailed(failed.orderId(), failed.reason());
+            EventEnvelope<PaymentFailed> event = envelopeOf(json, PaymentFailed.class);
+            saga.onPaymentFailed(event.eventId(), event.payload().orderId(), event.payload().reason());
         }
     }
 
-    private <T> T payloadOf(String json, Class<T> payloadType) {
+    private <T> EventEnvelope<T> envelopeOf(String json, Class<T> payloadType) {
         var envelopeType = mapper.getTypeFactory().constructParametricType(EventEnvelope.class, payloadType);
-        EventEnvelope<T> envelope = mapper.readValue(json, envelopeType);
-        return envelope.payload();
+        return mapper.readValue(json, envelopeType);
     }
 }

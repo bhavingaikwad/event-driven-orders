@@ -47,3 +47,10 @@ Stock levels and payment outcomes are SIMULATED.
 - Concurrency run: 30 parallel orders with a simulated 30% payment failure rate ended as 25 CONFIRMED and 5 CANCELLED, none left in a non-terminal state, stock still conserved (sku-2 945 = 1000 - 55).
 - Payment outcomes and stock levels are SIMULATED.
 - Not yet built or claimed: duplicate-event tracking table (M7), retry/backoff/DLQ (M8), timeouts for stuck orders, automated end-to-end tests (M12).
+
+## M7 measured facts
+- Unit tests: 36 total (contracts 9, order-service 19, inventory-service 3, payment-service 5), 0 failures.
+- Duplicate-delivery test against the real stack: 5 duplicate PaymentFailed events and 3 duplicate StockReserved events injected for one order. The order stayed CANCELLED, stock stayed unchanged (945), the reservation stayed RELEASED, the outbox held exactly 2 rows and payment-service exactly 1 payment row.
+- order-service recorded 8 duplicate PaymentFailed deliveries and 3 duplicate StockReserved deliveries in processed_events; 3 of the 8 PaymentFailed were republished by payment-service with new event ids, which an event-id-based dedupe would have missed.
+- Total PaymentFailed events on the topic after the test: 25 (16 before, 1 for the test order, 5 injected, 3 republished).
+- Not yet built or claimed: processed_events cleanup, outbox in payment-service and inventory-service, retries/backoff/DLQ (M8).

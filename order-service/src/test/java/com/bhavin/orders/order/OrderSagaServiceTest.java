@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,7 +25,18 @@ class OrderSagaServiceTest {
 
     private final OrderRepository orders = mock(OrderRepository.class);
     private final OutboxRepository outbox = mock(OutboxRepository.class);
-    private final OrderSagaService saga = new OrderSagaService(orders, outbox, JsonMapper.builder().build());
+    private final ProcessedEventRepository processed = mock(ProcessedEventRepository.class);
+    private final OrderSagaService saga =
+            new OrderSagaService(orders, outbox, processed, JsonMapper.builder().build());
+
+    @BeforeEach
+    void everyEventIsNewByDefault() {
+        when(processed.markProcessed(anyString(), anyString(), any(UUID.class), any(UUID.class))).thenReturn(true);
+    }
+
+    private static UUID eventId() {
+        return UUID.randomUUID();
+    }
 
     private Order existingOrder(OrderStatus status) {
         Order order = Order.create("c-1", "SP", "BRL",
@@ -49,7 +62,7 @@ class OrderSagaServiceTest {
     @Test
     void stockReservedMovesCreatedOrderForward() {
         Order order = existingOrder(OrderStatus.CREATED);
-        saga.onStockReserved(order.getId());
+        saga.onStockReserved(eventId(), order.getId());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.STOCK_RESERVED);
         verifyNoInteractions(outbox);
     }
@@ -57,7 +70,7 @@ class OrderSagaServiceTest {
     @Test
     void paymentSucceededConfirmsAndWritesOutboxEvent() {
         Order order = existingOrder(OrderStatus.STOCK_RESERVED);
-        saga.onPaymentSucceeded(order.getId());
+        saga.onPaymentSucceeded(eventId(), order.getId());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verifyOutbox(order, EventType.ORDER_CONFIRMED, 1);
     }
@@ -65,7 +78,7 @@ class OrderSagaServiceTest {
     @Test
     void paymentSucceededBeforeStockReservedStillConfirms() {
         Order order = existingOrder(OrderStatus.CREATED);
-        saga.onPaymentSucceeded(order.getId());
+        saga.onPaymentSucceeded(eventId(), order.getId());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verifyOutbox(order, EventType.ORDER_CONFIRMED, 1);
     }
@@ -73,7 +86,7 @@ class OrderSagaServiceTest {
     @Test
     void lateStockReservedAfterConfirmationIsIgnored() {
         Order order = existingOrder(OrderStatus.CONFIRMED);
-        saga.onStockReserved(order.getId());
+        saga.onStockReserved(eventId(), order.getId());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verifyNoInteractions(outbox);
     }
@@ -81,7 +94,7 @@ class OrderSagaServiceTest {
     @Test
     void paymentFailedCancelsAndWritesOutboxEvent() {
         Order order = existingOrder(OrderStatus.STOCK_RESERVED);
-        saga.onPaymentFailed(order.getId(), "Card declined (simulated)");
+        saga.onPaymentFailed(eventId(), order.getId(), "Card declined (simulated)");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verifyOutbox(order, EventType.ORDER_CANCELLED, 1);
     }
@@ -89,16 +102,16 @@ class OrderSagaServiceTest {
     @Test
     void stockRejectedCancelsCreatedOrder() {
         Order order = existingOrder(OrderStatus.CREATED);
-        saga.onStockRejected(order.getId(), "Insufficient stock");
+        saga.onStockRejected(eventId(), order.getId(), "Insufficient stock");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verifyOutbox(order, EventType.ORDER_CANCELLED, 1);
     }
 
     @Test
-    void duplicatePaymentFailedPublishesOnlyOnce() {
+    void sameEventTwiceByStateAloneStillPublishesOnlyOnce() {
         Order order = existingOrder(OrderStatus.STOCK_RESERVED);
-        saga.onPaymentFailed(order.getId(), "declined");
-        saga.onPaymentFailed(order.getId(), "declined");
+        saga.onPaymentFailed(eventId(), order.getId(), "declined");
+        saga.onPaymentFailed(eventId(), order.getId(), "declined");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verifyOutbox(order, EventType.ORDER_CANCELLED, 1);
     }
@@ -106,7 +119,7 @@ class OrderSagaServiceTest {
     @Test
     void paymentFailedAfterConfirmationIsIgnored() {
         Order order = existingOrder(OrderStatus.CONFIRMED);
-        saga.onPaymentFailed(order.getId(), "declined");
+        saga.onPaymentFailed(eventId(), order.getId(), "declined");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verifyNoInteractions(outbox);
     }
@@ -115,6 +128,30 @@ class OrderSagaServiceTest {
     void unknownOrderIsReported() {
         UUID unknown = UUID.randomUUID();
         when(orders.findById(unknown)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> saga.onPaymentSucceeded(unknown)).isInstanceOf(OrderNotFoundException.class);
+        assertThatThrownBy(() -> saga.onPaymentSucceeded(eventId(), unknown))
+                .isInstanceOf(OrderNotFoundException.class);
+    }
+
+    @Test
+    void duplicateEventIsIgnoredWithoutTouchingTheOrder() {
+        Order order = existingOrder(OrderStatus.STOCK_RESERVED);
+        when(processed.markProcessed(anyString(), anyString(), any(UUID.class), any(UUID.class))).thenReturn(false);
+
+        saga.onPaymentFailed(eventId(), order.getId(), "declined");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.STOCK_RESERVED);
+        verify(orders, never()).findById(any(UUID.class));
+        verifyNoInteractions(outbox);
+    }
+
+    @Test
+    void eventIsRecordedUnderItsBusinessKey() {
+        Order order = existingOrder(OrderStatus.STOCK_RESERVED);
+        UUID eventId = eventId();
+
+        saga.onPaymentFailed(eventId, order.getId(), "declined");
+
+        verify(processed).markProcessed("order-service", EventType.PAYMENT_FAILED.typeName(),
+                order.getId(), eventId);
     }
 }

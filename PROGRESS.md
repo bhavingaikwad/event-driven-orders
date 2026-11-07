@@ -24,3 +24,9 @@
 - Handlers tolerate out-of-order events (PaymentSucceeded on a CREATED order steps through STOCK_RESERVED) and ignore events for orders already in a terminal state.
 - Verified manually against the real stack; automated end-to-end tests with Testcontainers are planned for M12.
 - Known gap: orders that never received any event stay CREATED (no timeout handling yet).
+
+## M7: idempotent consumers (done)
+- order-service records every saga event in processed_events (key: consumer, event type, order id) in the same transaction as the order state change and its outbox row; duplicates are ignored and counted.
+- Dedupe key is the business identity, not the event id, because payment-service republishes its stored decision with a new event id when it sees a duplicate StockReserved. Valid because each saga step happens once per order.
+- inventory-service and payment-service keep natural idempotency (stored decision per order, UNIQUE order_id, conditional writes): a dedupe table there would be unsafe without an outbox, because they publish to Kafka directly after their own write.
+- Known limitation: processed_events has no purge job yet.
