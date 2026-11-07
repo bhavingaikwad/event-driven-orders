@@ -1,0 +1,18 @@
+# build
+target/
+*.class
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+# secrets and local config
+.env
+*.pem
+*.tfvars
+.terraform/
+*.tfstate*
+# datasets: never commit raw data
+data/
+*.csv
+*.zip
