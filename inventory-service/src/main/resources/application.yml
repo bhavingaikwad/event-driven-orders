@@ -1,0 +1,37 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: inventory-service
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: inventory-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      concurrency: 3
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        max.block.ms: 3000
+        request.timeout.ms: 2000
+        delivery.timeout.ms: 4000
+
+inventory:
+  dynamodb:
+    # Local DynamoDB. Leave endpoint empty to use real AWS with the default credential chain.
+    endpoint: http://localhost:8000
+    region: us-east-1
+  # SIMULATED starting stock, created only if the sku does not exist yet
+  seed-stock:
+    sku-1: 1000
+    sku-2: 1000
+    sku-scarce: 5

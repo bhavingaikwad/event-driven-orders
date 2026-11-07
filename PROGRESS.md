@@ -5,3 +5,9 @@
 | M1 Repo and contracts | done | Spring Boot 4.0.8 parent, contracts module, 7 event types, envelope, versioning rule, 9 unit tests |
 | M2 order-service | done | REST create/get, state machine, Flyway V1, optimistic-lock version column, 6 unit tests. Docker Postgres on host port 5433 (local Postgres uses 5432). |
 | M3 Transactional outbox | done | Flyway V2 outbox table, relay (SKIP LOCKED, stops at first failure), DUAL_WRITE demo mode vs OUTBOX mode, 3 topics x 3 partitions, 2 relay unit tests |
+
+## M4: inventory-service (done)
+- Consumes `OrderCreated`, reserves stock in DynamoDB Local with a conditional-write transaction, publishes `StockReserved` / `StockRejected`.
+- Decision (reserved or rejected) is stored per order, so a redelivered message reuses it.
+- Unit tests: 20 total (contracts 9, order-service 8, inventory-service 3).
+- Stock levels are SIMULATED (seeded from config).

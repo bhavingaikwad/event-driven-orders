@@ -22,3 +22,10 @@ Stock levels and payment outcomes are SIMULATED.
 ## Not built / not claimed
 - No automated integration tests yet (planned for M12)
 - Delivery is at-least-once, not exactly-once; idempotent consumers come in M7
+
+## M4 measured facts
+- Unit tests: 20 total (contracts 9, order-service 8, inventory-service 3), 0 failures.
+- Oversell race test: 20 simultaneous orders for a SKU with 5 simulated units, all 20 accepted by order-service (HTTP 201); final stock 0, never negative; exactly 5 StockReserved and 15 StockRejected events.
+- Rejection paths verified: oversize quantity (5000) and unknown SKU both produced StockRejected, stock unchanged.
+- Stock quantities are simulated seed data, not from the dataset.
+- Not yet built or claimed: duplicate-event handling beyond the stored decision (M7), retries/DLQ for failed messages (M8), automated integration tests (M12). Transaction-conflict retry exists in code but its frequency was not measured.
