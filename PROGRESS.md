@@ -17,3 +17,10 @@
 - SIMULATED payment gateway: deterministic decision from orderId hash and a failure rate, changeable at runtime via PUT /simulation/failure-rate.
 - Interim Kafka retry policy (20 x 500 ms, then skip) until M8.
 - Known gap: stock stays reserved when payment fails (fixed by compensation in M6).
+
+## M6: saga and compensation (done)
+- order-service consumes StockReserved/StockRejected/PaymentSucceeded/PaymentFailed and moves the order to CONFIRMED or CANCELLED; the OrderConfirmed/OrderCancelled event is written through the outbox in the same transaction as the state change.
+- inventory-service consumes PaymentFailed and releases the reservation (compensation) with a DynamoDB transaction conditional on status RESERVED, so a duplicate release changes nothing.
+- Handlers tolerate out-of-order events (PaymentSucceeded on a CREATED order steps through STOCK_RESERVED) and ignore events for orders already in a terminal state.
+- Verified manually against the real stack; automated end-to-end tests with Testcontainers are planned for M12.
+- Known gap: orders that never received any event stay CREATED (no timeout handling yet).

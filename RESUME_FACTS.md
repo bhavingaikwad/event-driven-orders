@@ -38,3 +38,12 @@ Stock levels and payment outcomes are SIMULATED.
 - Payment outcomes are SIMULATED; no real payment gateway is used.
 - Observed gap before M6: with failed payments, inventory stayed reserved (sku-2 stock 965 after 32 orders, at least 9 units held by failed payments).
 - Not yet built or claimed: stock release on payment failure (M6), formal duplicate-event tracking (M7), retries/DLQ (M8).
+
+## M6 measured facts
+- Unit tests: 34 total (contracts 9, order-service 17 incl. 9 saga tests, inventory-service 3, payment-service 5), 0 failures.
+- Replaying existing Kafka history through the new consumers: of 62 orders (all CREATED before), 31 became CONFIRMED and 27 CANCELLED (31 successful payments; 10 failed payments + 17 stock rejections); 4 stayed CREATED because no event had ever been published for them. Published OrderConfirmed/OrderCancelled event counts (31/27) matched the database.
+- Stock conservation checked per SKU (available = seed - units in CONFIRMED orders): sku-1 994, sku-2 974, sku-scarce 1, all matching. The 9 units of sku-2 stuck behind failed payments in M5 were released automatically.
+- Live scenarios: payment failure -> order CANCELLED and reservation RELEASED, stock unchanged; payment success -> CONFIRMED; stock rejection -> CANCELLED with nothing to release. Release happened about 135 ms after the reservation in the one failure sample timed.
+- Concurrency run: 30 parallel orders with a simulated 30% payment failure rate ended as 25 CONFIRMED and 5 CANCELLED, none left in a non-terminal state, stock still conserved (sku-2 945 = 1000 - 55).
+- Payment outcomes and stock levels are SIMULATED.
+- Not yet built or claimed: duplicate-event tracking table (M7), retry/backoff/DLQ (M8), timeouts for stuck orders, automated end-to-end tests (M12).

@@ -148,7 +148,7 @@ public class StockService {
         }
         String status = item.get("status").s();
         return switch (status) {
-            case "RESERVED" -> Optional.of(
+            case "RESERVED", "RELEASED" -> Optional.of(
                     new ReservationOutcome.Reserved(UUID.fromString(item.get("reservationId").s())));
             case "REJECTED" -> Optional.of(new ReservationOutcome.Rejected(item.get("reason").s()));
             default -> throw new IllegalStateException("Unexpected reservation status " + status);
