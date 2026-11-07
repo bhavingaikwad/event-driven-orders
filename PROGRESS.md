@@ -1,4 +1,5 @@
 # PROGRESS
 | Milestone | Status | Notes |
 |---|---|---|
-| M0 Setup | in progress | JDK 21.0.13 Temurin, Maven 3.10.0, Apple Silicon |
+| M0 Setup | done | JDK 21 (Temurin), Maven, Docker Desktop. Compose: Kafka (KRaft), Postgres, DynamoDB Local. Jaeger/Prometheus/Grafana deferred to M11. Open: verify budget alert email; fix AWS CLI before M16. |
+| M1 Repo and contracts | done | Spring Boot 4.0.8 parent, contracts module, 7 event types, envelope, versioning rule, 9 unit tests passing |
