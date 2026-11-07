@@ -11,3 +11,9 @@
 - Decision (reserved or rejected) is stored per order, so a redelivered message reuses it.
 - Unit tests: 20 total (contracts 9, order-service 8, inventory-service 3).
 - Stock levels are SIMULATED (seeded from config).
+
+## M5: payment-service (done)
+- Consumes `OrderCreated` (keeps a local copy of the order total) and `StockReserved`; stores one payment decision per order in PostgreSQL (UNIQUE order_id); publishes `PaymentSucceeded` / `PaymentFailed`.
+- SIMULATED payment gateway: deterministic decision from orderId hash and a failure rate, changeable at runtime via PUT /simulation/failure-rate.
+- Interim Kafka retry policy (20 x 500 ms, then skip) until M8.
+- Known gap: stock stays reserved when payment fails (fixed by compensation in M6).

@@ -29,3 +29,12 @@ Stock levels and payment outcomes are SIMULATED.
 - Rejection paths verified: oversize quantity (5000) and unknown SKU both produced StockRejected, stock unchanged.
 - Stock quantities are simulated seed data, not from the dataset.
 - Not yet built or claimed: duplicate-event handling beyond the stored decision (M7), retries/DLQ for failed messages (M8), automated integration tests (M12). Transaction-conflict retry exists in code but its frequency was not measured.
+
+## M5 measured facts
+- Unit tests: 25 total (contracts 9, order-service 8, inventory-service 3, payment-service 5), 0 failures.
+- Replay of existing Kafka history: 26 OrderCreated events stored, 9 StockReserved events produced 9 payments (8 succeeded, 1 failed); published event counts matched the table.
+- Failure injection verified at runtime: rate 1.0 produced a FAILED payment, rate 0.0 a SUCCEEDED payment, an out-of-range rate returned HTTP 400.
+- Mixed run: 30 orders at a simulated 30% failure rate gave 8 failed and 22 succeeded payments; database rows (41) equalled published payment events (41).
+- Payment outcomes are SIMULATED; no real payment gateway is used.
+- Observed gap before M6: with failed payments, inventory stayed reserved (sku-2 stock 965 after 32 orders, at least 9 units held by failed payments).
+- Not yet built or claimed: stock release on payment failure (M6), formal duplicate-event tracking (M7), retries/DLQ (M8).
