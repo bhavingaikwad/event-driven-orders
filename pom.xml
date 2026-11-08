@@ -26,5 +26,6 @@
     <module>inventory-service</module>
     <module>payment-service</module>
     <module>dlq-tool</module>
+    <module>replay-tool</module>
   </modules>
 </project>

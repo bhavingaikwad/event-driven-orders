@@ -46,3 +46,11 @@
 - New simulation controls: PUT /simulation/gateway-down, PUT /simulation/gateway-latency, GET /circuit-breaker.
 - Tests: 45 total (contracts 9, order 19, inventory 3, payment 14).
 - Known gaps: breaker state is in memory (per instance, reset on restart); orders rejected while the breaker is open are not retried after recovery, the customer must re-order; no breaker metrics until M11.
+
+## M10: real-data replay (done)
+- New replay-tool module (plain Java, JDK HTTP client) with two commands: stats and run. It replays real Olist orders (busiest day, 2017-11-24) at their original arrival times divided by a speed factor, open loop.
+- inventory-service: PUT /admin/stock bulk-sets SIMULATED stock. The tool seeds each product at 90% of the window's demand.
+- Data lives in ~/Documents/DS_project/data/olist, outside the repo, and is never committed. 98,666 replayable orders (775 without items skipped, 0 malformed rows).
+- Runs: 1x, 60x, 600x and 3600x (measured numbers are in RESUME_FACTS.md).
+- Tests: 61 total (contracts 9, order 19, inventory 9, payment 14, replay-tool 10).
+- Known gaps: PUT /admin/stock has no authentication and must be disabled before any public deploy (M16). Time to final status is measured by polling, so it is accurate to about +/- 0.5 s. Orders accumulate in the databases between runs. The bottleneck at 3600x is not identified yet (M11).

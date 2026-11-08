@@ -70,3 +70,12 @@ Stock levels and payment outcomes are SIMULATED.
 - Slow gateway (1.5 s per call, 1 s threshold, 0 errors): the breaker opened on slow calls alone (slowCalls 2); 2 orders CONFIRMED and 3 were rejected fast with CANCELLED.
 - A failed half-open probe sent the breaker back to OPEN (observed when the gateway was still down).
 - 14 payment-service tests cover the breaker (declines are not failures, outage, slow calls, fail-fast, half-open recovery).
+
+## M10: real-data replay (measured; stock and payment outcomes are SIMULATED)
+- Data: Olist public dataset, 98,666 replayable orders. Replayed its busiest day, 2017-11-24: 1,166 orders, 919 distinct products, peak hour 87 orders.
+- Open-loop replay at the original arrival times divided by a speed factor. Send lag stayed at or under 23 ms in every run.
+- 2,504 orders in 4 runs (1x, 60x, 600x, 3600x): all accepted (HTTP 201), all reached CONFIRMED or CANCELLED, 0 unfinished. 1,743 CONFIRMED, 761 CANCELLED.
+- Cancellations: 440 simulated payment declines (20.2% of the 2,183 payments, simulated decline rate 0.2) and 321 simulated stock rejections (stock seeded at 90% of demand).
+- No new dead-letter messages during the 2,504 orders. The circuit breaker stayed CLOSED.
+- Time from send to final status (polled, +/- 0.5 s), p95: 1.18 s at 1x (9 orders), 0.96 s at 60x (163 orders, 1.4 orders/s), 1.07 s at 600x (1,166 orders, 8.1 orders/s).
+- At 3600x (1,166 orders in 24 s, 48.6 orders/s) the pipeline queued on a laptop: p50 5.78 s, p95 11.99 s, max 12.76 s, all orders still completed. Bottleneck not yet identified.
