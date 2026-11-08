@@ -89,3 +89,16 @@ Stock levels and payment outcomes are SIMULATED.
 - One order is one trace: 15 spans across 3 services, root http post /orders.
 - Observability stack cost: about 1.58 GB of images (Prometheus 336 MB, Grafana 1.08 GB, Jaeger 164 MB) and about 280 MiB of RAM.
 - Caveats: single laptop, one machine sharing Kafka, Postgres, DynamoDB Local, three JVMs and the replay tool; time-to-final is accurate to about 0.5 s (polling).
+
+## M12 - Testing (measured facts only)
+
+- Test count grew from 71 to 105 (104 run + 1 gated end-to-end test) across 5 modules; `mvn clean verify` passes.
+- JaCoCo line coverage: order-service 45.5% -> 87.7%, inventory-service 6.2% -> 82.4%, payment-service 36.7% -> 84.8%, contracts 72.6% -> 95.2%. Replay-tool unchanged at 69.3%. dlq-tool has no tests. This is line coverage, not a measure of test quality.
+- Integration tests run against real Kafka (apache/kafka:3.9.0), Postgres 16 and DynamoDB Local via Testcontainers, not mocks. They cover: happy path through the transactional outbox, duplicate delivery applied once, payment-failure compensation, unparseable message straight to the dead-letter topic, retry exhaustion to the dead-letter topic, circuit breaker fast-fail.
+- Contract test pins the JSON wire format of all 7 event types against hand-written golden strings, plus tolerant-reader (unknown field ignored) and missing-required-field behavior.
+- Concurrency check (single run, DynamoDB Local, laptop): 20 concurrent reservation attempts on 5 units of stock gave 5 reserved, 15 rejected, 0 errors, 0 remaining.
+- Black-box end-to-end check (single run, laptop, running stack): 30 concurrent orders against a SKU with 10 units of simulated stock gave 10 CONFIRMED, 20 CANCELLED, 0 unfinished.
+- Stock and payment outcomes are SIMULATED in all of the above.
+- Finding: during a simulated gateway outage the first failing order is dead-lettered (the exception propagates), while later orders fast-fail with a stored FAILED payment ("circuit open") once the breaker opens.
+- Observed, cause not confirmed: consumer retry attempts were about 0.5 s apart in logs even with 50 ms configured intervals.
+- Not done: no test of payment failure in the end-to-end run, no tests for dlq-tool, results are single runs, not repeated statistics.
