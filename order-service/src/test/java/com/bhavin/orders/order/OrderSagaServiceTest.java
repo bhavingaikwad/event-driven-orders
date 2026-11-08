@@ -27,7 +27,8 @@ class OrderSagaServiceTest {
     private final OutboxRepository outbox = mock(OutboxRepository.class);
     private final ProcessedEventRepository processed = mock(ProcessedEventRepository.class);
     private final OrderSagaService saga =
-            new OrderSagaService(orders, outbox, processed, JsonMapper.builder().build());
+            new OrderSagaService(orders, outbox, processed, JsonMapper.builder().build(),
+            new OrderMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
 
     @BeforeEach
     void everyEventIsNewByDefault() {

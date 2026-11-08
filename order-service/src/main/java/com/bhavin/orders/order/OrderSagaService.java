@@ -16,6 +16,8 @@ import tools.jackson.databind.ObjectMapper;
  * Each handler runs in one transaction that holds: the processed-event marker, the order state
  * change and the outbox row for the event it produces. A duplicate is detected by the marker
  * and ignored; out-of-order delivery is tolerated by the state checks.
+ * Outcome counters are incremented inside the transaction, so a rolled-back attempt that is
+ * retried can count twice; treat them as operational metrics, not as accounting.
  */
 @Service
 public class OrderSagaService {
@@ -28,13 +30,16 @@ public class OrderSagaService {
     private final OutboxRepository outbox;
     private final ProcessedEventRepository processed;
     private final ObjectMapper mapper;
+    private final OrderMetrics metrics;
 
     public OrderSagaService(OrderRepository orders, OutboxRepository outbox,
-                            ProcessedEventRepository processed, ObjectMapper mapper) {
+                            ProcessedEventRepository processed, ObjectMapper mapper,
+                            OrderMetrics metrics) {
         this.orders = orders;
         this.outbox = outbox;
         this.processed = processed;
         this.mapper = mapper;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -56,7 +61,7 @@ public class OrderSagaService {
         if (isDuplicate(EventType.STOCK_REJECTED, eventId, orderId)) {
             return;
         }
-        cancel(load(orderId), "Stock rejected: " + reason);
+        cancel(load(orderId), "Stock rejected: " + reason, "stock_rejected");
     }
 
     @Transactional
@@ -72,6 +77,7 @@ public class OrderSagaService {
         if (order.getStatus() == OrderStatus.STOCK_RESERVED) {
             order.transitionTo(OrderStatus.CONFIRMED);
             publish(order, EventType.ORDER_CONFIRMED, new OrderConfirmed(order.getId()));
+            metrics.confirmed();
             log.info("Order {} -> CONFIRMED", orderId);
         } else {
             log.info("Order {} is already {}, ignoring PaymentSucceeded", orderId, order.getStatus());
@@ -83,7 +89,7 @@ public class OrderSagaService {
         if (isDuplicate(EventType.PAYMENT_FAILED, eventId, orderId)) {
             return;
         }
-        cancel(load(orderId), "Payment failed: " + reason);
+        cancel(load(orderId), "Payment failed: " + reason, "payment_failed");
     }
 
     private boolean isDuplicate(EventType type, UUID eventId, UUID orderId) {
@@ -94,13 +100,14 @@ public class OrderSagaService {
         return true;
     }
 
-    private void cancel(Order order, String reason) {
+    private void cancel(Order order, String reason, String cause) {
         if (!order.getStatus().canTransitionTo(OrderStatus.CANCELLED)) {
             log.info("Order {} is already {}, ignoring cancellation", order.getId(), order.getStatus());
             return;
         }
         order.transitionTo(OrderStatus.CANCELLED);
         publish(order, EventType.ORDER_CANCELLED, new OrderCancelled(order.getId(), reason));
+        metrics.cancelled(cause);
         log.info("Order {} -> CANCELLED ({})", order.getId(), reason);
     }
 
