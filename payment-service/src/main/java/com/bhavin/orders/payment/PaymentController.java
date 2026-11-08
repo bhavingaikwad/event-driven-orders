@@ -29,7 +29,8 @@ public class PaymentController {
 
     @GetMapping("/simulation")
     public Map<String, Object> simulation() {
-        return Map.of("failureRate", simulator.failureRate());
+        return Map.of("failureRate", simulator.failureRate(),
+                "transientFailuresLeft", simulator.transientFailuresLeft());
     }
 
     /** Failure injection: change the share of declined payments without restarting. */
@@ -41,5 +42,16 @@ public class PaymentController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
         return Map.of("failureRate", simulator.failureRate());
+    }
+
+    /** Failure injection: the next N payment attempts throw, to exercise retries and the DLQ. */
+    @PutMapping("/simulation/transient-failures")
+    public Map<String, Object> setTransientFailures(@RequestParam("count") int count) {
+        try {
+            simulator.setTransientFailures(count);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+        return Map.of("transientFailuresLeft", simulator.transientFailuresLeft());
     }
 }

@@ -34,6 +34,8 @@ public class PaymentService {
             return existing.get();
         }
 
+        simulator.maybeFailTransiently(orderId);
+
         OrderAmount total = repository.findOrderAmount(orderId)
                 .orElseThrow(() -> new OrderAmountUnknownException(orderId));
         PaymentSimulator.Decision decision = simulator.decide(orderId);

@@ -54,3 +54,12 @@ Stock levels and payment outcomes are SIMULATED.
 - order-service recorded 8 duplicate PaymentFailed deliveries and 3 duplicate StockReserved deliveries in processed_events; 3 of the 8 PaymentFailed were republished by payment-service with new event ids, which an event-id-based dedupe would have missed.
 - Total PaymentFailed events on the topic after the test: 25 (16 before, 1 for the test order, 5 injected, 3 republished).
 - Not yet built or claimed: processed_events cleanup, outbox in payment-service and inventory-service, retries/backoff/DLQ (M8).
+
+## M8 measured facts
+- Unit tests: 38 total (contracts 9, order-service 19, inventory-service 3, payment-service 7), 0 failures.
+- Transient failure test: 3 injected failures in payment-service, the order still reached CONFIRMED after 4 s through retries with backoff.
+- Retry exhaustion test: with 100 injected failures, payment-service made 7 attempts (counter 100 to 93), then the StockReserved event landed in inventory-events.DLT; the order stayed STOCK_RESERVED with no payment recorded.
+- Replay test: dlq-tool replayed the dead letter, the order reached CONFIRMED, and order-service recorded the replayed StockReserved as a duplicate instead of reapplying it.
+- Poison message test: a non-JSON message on payment-events produced 2 dead letters (one per consuming service) within 5 s, with no retries.
+- Retry policy values (exponential backoff 0.5 s to 5 s, 6 retries) are configuration, not measured throughput.
+- Not yet built or claimed: non-blocking retry topics, DLT monitoring/alerting, automated tests for the dead-letter path (M12).

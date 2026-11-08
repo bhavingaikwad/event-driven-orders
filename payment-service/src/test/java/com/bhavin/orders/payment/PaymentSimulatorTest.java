@@ -67,4 +67,23 @@ class PaymentSimulatorTest {
         assertThatThrownBy(() -> simulator.setFailureRate(1.5)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> simulator.setFailureRate(-0.1)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void transientFailuresHappenExactlyTheConfiguredNumberOfTimes() {
+        PaymentSimulator simulator = simulatorWithRate(0.0);
+        simulator.setTransientFailures(3);
+        UUID orderId = new UUID(1L, 2L);
+        for (int i = 0; i < 3; i++) {
+            assertThatThrownBy(() -> simulator.maybeFailTransiently(orderId))
+                    .isInstanceOf(PaymentSimulator.SimulatedTransientException.class);
+        }
+        simulator.maybeFailTransiently(orderId);
+        assertThat(simulator.transientFailuresLeft()).isZero();
+    }
+
+    @Test
+    void rejectsNegativeTransientFailureCount() {
+        PaymentSimulator simulator = simulatorWithRate(0.0);
+        assertThatThrownBy(() -> simulator.setTransientFailures(-1)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

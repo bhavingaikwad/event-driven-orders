@@ -25,5 +25,6 @@
     <module>order-service</module>
     <module>inventory-service</module>
     <module>payment-service</module>
+    <module>dlq-tool</module>
   </modules>
 </project>
