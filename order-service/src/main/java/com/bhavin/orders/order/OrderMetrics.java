@@ -3,8 +3,14 @@ package com.bhavin.orders.order;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Counts orders that reached a final state. Low-cardinality tags only: never an order id. */
+/**
+ * Counts orders that reached a final state. Low-cardinality tags only: never an order id.
+ * Inside a transaction the count waits for the commit, so a rolled-back and retried attempt
+ * is not counted twice.
+ */
 @Component
 public class OrderMetrics {
 
@@ -20,11 +26,24 @@ public class OrderMetrics {
     }
 
     public void confirmed() {
-        counter("confirmed", "none").increment();
+        whenCommitted(() -> counter("confirmed", "none").increment());
     }
 
     public void cancelled(String cause) {
-        counter("cancelled", cause).increment();
+        whenCommitted(() -> counter("cancelled", cause).increment());
+    }
+
+    private static void whenCommitted(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     private Counter counter(String outcome, String cause) {

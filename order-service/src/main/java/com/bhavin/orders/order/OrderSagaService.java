@@ -16,8 +16,7 @@ import tools.jackson.databind.ObjectMapper;
  * Each handler runs in one transaction that holds: the processed-event marker, the order state
  * change and the outbox row for the event it produces. A duplicate is detected by the marker
  * and ignored; out-of-order delivery is tolerated by the state checks.
- * Outcome counters are incremented inside the transaction, so a rolled-back attempt that is
- * retried can count twice; treat them as operational metrics, not as accounting.
+ * Outcome counters are recorded only after the transaction commits, so a retry is not counted twice.
  */
 @Service
 public class OrderSagaService {
