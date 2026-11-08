@@ -37,3 +37,12 @@
 - payment-service got simulated transient failures (PUT /simulation/transient-failures) to exercise the policy.
 - Replay is safe because consumers already ignore duplicates (M6, M7).
 - Known limitations: retries are blocking (a failing message delays later messages on its partition); no alerting on DLT size; dead-letter handling is verified manually, automated tests come with M12.
+
+## M9: circuit breaker (done)
+- payment-service wraps the simulated gateway in a Resilience4j 2.4.0 circuit breaker (core library, used programmatically).
+- Window: last 10 calls, minimum 3 calls, opens at 50% failures or 50% slow calls (slow = over 1 s), stays open 5 s, then 2 half-open probe calls.
+- Only gateway outages and slow calls count as failures. A declined card is a normal business answer.
+- While open, a payment is stored as FAILED with reason "Payment gateway unavailable (circuit open)"; the saga cancels the order and releases stock.
+- New simulation controls: PUT /simulation/gateway-down, PUT /simulation/gateway-latency, GET /circuit-breaker.
+- Tests: 45 total (contracts 9, order 19, inventory 3, payment 14).
+- Known gaps: breaker state is in memory (per instance, reset on restart); orders rejected while the breaker is open are not retried after recovery, the customer must re-order; no breaker metrics until M11.

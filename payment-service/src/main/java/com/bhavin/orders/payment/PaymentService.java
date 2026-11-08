@@ -20,10 +20,12 @@ public class PaymentService {
 
     private final PaymentRepository repository;
     private final PaymentSimulator simulator;
+    private final GatewayCircuitBreaker gateway;
 
-    public PaymentService(PaymentRepository repository, PaymentSimulator simulator) {
+    public PaymentService(PaymentRepository repository, PaymentSimulator simulator, GatewayCircuitBreaker gateway) {
         this.repository = repository;
         this.simulator = simulator;
+        this.gateway = gateway;
     }
 
     /** Idempotent: the first decision for an order is stored and returned on every later call. */
@@ -38,7 +40,7 @@ public class PaymentService {
 
         OrderAmount total = repository.findOrderAmount(orderId)
                 .orElseThrow(() -> new OrderAmountUnknownException(orderId));
-        PaymentSimulator.Decision decision = simulator.decide(orderId);
+        PaymentSimulator.Decision decision = gateway.charge(orderId);
         Payment payment = new Payment(
                 UUID.randomUUID(),
                 orderId,

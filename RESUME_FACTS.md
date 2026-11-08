@@ -63,3 +63,10 @@ Stock levels and payment outcomes are SIMULATED.
 - Poison message test: a non-JSON message on payment-events produced 2 dead letters (one per consuming service) within 5 s, with no retries.
 - Retry policy values (exponential backoff 0.5 s to 5 s, 6 retries) are configuration, not measured throughput.
 - Not yet built or claimed: non-blocking retry topics, DLT monitoring/alerting, automated tests for the dead-letter path (M12).
+
+## M9: circuit breaker (measured, gateway outcomes are SIMULATED)
+- Gateway outage: the breaker opened after 3 failed gateway calls. 6 of 6 orders were then CANCELLED, 6 payments were rejected without calling the gateway (notPermittedCalls 6), and sku-2 stock was unchanged (943 before and after).
+- Recovery: after the gateway came back and the 5 s open period passed, the breaker went OPEN to HALF_OPEN to CLOSED and 3 of 3 orders CONFIRMED.
+- Slow gateway (1.5 s per call, 1 s threshold, 0 errors): the breaker opened on slow calls alone (slowCalls 2); 2 orders CONFIRMED and 3 were rejected fast with CANCELLED.
+- A failed half-open probe sent the breaker back to OPEN (observed when the gateway was still down).
+- 14 payment-service tests cover the breaker (declines are not failures, outage, slow calls, fail-fast, half-open recovery).
