@@ -36,7 +36,7 @@ public class OutboxRelay {
 
     @Autowired
     public OutboxRelay(OutboxRepository outbox, KafkaEventSender sender,
-                       @Value("${outbox.relay.batch-size:50}") int batchSize,
+                       @Value("${outbox.relay.batch-size:200}") int batchSize,
                        MeterRegistry registry) {
         this.outbox = outbox;
         this.sender = sender;
@@ -49,7 +49,7 @@ public class OutboxRelay {
                 .description("Time for one relay batch that had rows").register(registry);
     }
 
-    @Scheduled(fixedDelayString = "${outbox.relay.poll-interval-ms:500}")
+    @Scheduled(fixedDelayString = "${outbox.relay.poll-interval-ms:50}")
     @Transactional
     public void relayBatch() {
         List<OutboxRow> rows = outbox.lockUnpublished(batchSize);
