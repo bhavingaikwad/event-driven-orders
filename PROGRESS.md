@@ -81,3 +81,16 @@ Notes:
 - apache/kafka:3.9.0 under Testcontainers needs `KAFKA_LISTENERS=PLAINTEXT://:9092,BROKER://:9093,CONTROLLER://:9094`, otherwise the broker refuses to start (advertised.listeners cannot use 0.0.0.0).
 - Mockito is loaded as a -javaagent in the order-service surefire run to avoid the dynamic self-attach warning.
 - Run the end-to-end test against the running stack: `E2E=true mvn -pl replay-tool test -Dtest=EndToEndTest`.
+
+## M13 - Chaos drills (done)
+
+Four planned failures on the local stack, each with an incident report in `docs/incidents/`. Hypothesis written first, results measured, limits stated. Stock and payment outcomes are simulated.
+
+| Drill | Failure | Result |
+|---|---|---|
+| INC-001 | Kafka stopped 6 min 13 s | 40 of 40 orders accepted, 40 outbox rows queued, drained within about 4 s of restart, no loss |
+| INC-002 | payment-service stopped | 30 of 30 orders accepted, lag 30 held in Kafka, 30 payments created once after restart, no new dead letters |
+| INC-003 | order-service `kill -9` mid-burst | 64 accepted, 236 refused; all 64 finished; payments +64 distinct |
+| INC-004 | Postgres stopped about 89 s | API 500 after 30 s, health hung, events blocked in retries and completed after restart, no dead letters |
+
+Gaps found: no alert on outbox backlog or consumer lag; health checks hang when the database is down; duplicate-resend window after a crash not measured; outages longer than the retry window not tested.

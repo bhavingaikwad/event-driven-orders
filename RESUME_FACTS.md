@@ -102,3 +102,14 @@ Stock levels and payment outcomes are SIMULATED.
 - Finding: during a simulated gateway outage the first failing order is dead-lettered (the exception propagates), while later orders fast-fail with a stored FAILED payment ("circuit open") once the breaker opens.
 - Observed, cause not confirmed: consumer retry attempts were about 0.5 s apart in logs even with 50 ms configured intervals.
 - Not done: no test of payment failure in the end-to-end run, no tests for dlq-tool, results are single runs, not repeated statistics.
+
+## M13 - Chaos drills (measured facts only)
+
+- Ran 4 planned failure drills on a local Docker setup and wrote an incident report for each (`docs/incidents/INC-001` to `INC-004`).
+- Kafka stopped for 6 min 13 s: 40 of 40 orders still accepted (HTTP 201, about 5-13 ms after a 149 ms first call), 40 outbox rows queued, backlog drained within about 4 s of the broker returning with no service restart, zero duplicate outbox events.
+- payment-service stopped: 30 of 30 orders accepted, 30 events held as consumer lag per topic, after restart exactly 30 payments with 30 distinct order IDs and no new dead letters.
+- order-service killed with `kill -9` mid-burst: 64 requests accepted and 236 refused; all 64 accepted orders reached CONFIRMED (54) or CANCELLED (10); payments +64, all distinct.
+- Postgres stopped for about 89 s with 20 events in flight: API returned 500 after 30 s, health endpoints hung, events stayed blocked in retries, and after Postgres returned all 20 finished with no restart and no dead letters.
+- All results are single runs on a laptop with simulated stock and payments.
+- Not measured: drain time in drills 2 and 3; whether a crash can resend a row Kafka already accepted; outages longer than about 90 s.
+- Gaps found, not fixed: no alert on outbox backlog or consumer lag; health checks hang when the database is down.
