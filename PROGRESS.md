@@ -62,3 +62,22 @@
 - Logs: correlationId in every Kafka-handled log line (RecordInterceptor), written to logs/ (gitignored).
 - Tests: 71.
 - Known gaps: Prometheus scrapes appear as separate one-span traces; sampling is 100% (lower it for M14); Jaeger keeps traces in memory only; HTTP-request log lines carry traceId but not correlationId; the relay still sends row by row (measured ceiling about 150 rows/s, pipelining is the next step if M14 hits it); the relay polls the database 20 times a second even when idle; Grafana password is local-only.
+
+## M12 - Testing (done)
+
+What was added: Testcontainers integration tests on real Kafka, Postgres and DynamoDB Local for order-, inventory- and payment-service; a wire-format (golden JSON) contract test for all 7 events; a black-box end-to-end test gated by `E2E=true`; JaCoCo coverage reporting in the root pom.
+
+| Module | Tests before | Tests after | Line coverage before -> after | Branch coverage before -> after |
+|---|---|---|---|---|
+| contracts | 9 | 25 | 72.6% -> 95.2% | 75.0% -> 75.0% |
+| order-service | 27 | 32 | 45.5% -> 87.7% | 58.2% -> 80.6% |
+| inventory-service | 9 | 14 | 6.2% -> 82.4% | 17.9% -> 66.3% |
+| payment-service | 16 | 23 | 36.7% -> 84.8% | 52.0% -> 80.0% |
+| replay-tool | 10 | 11 (1 skipped unless E2E=true) | 69.3% -> 69.3% | 49.7% -> 49.7% |
+| dlq-tool | 0 | 0 | not measured | not measured |
+| Total | 71 | 105 (104 run, 1 skipped) | | |
+
+Notes:
+- apache/kafka:3.9.0 under Testcontainers needs `KAFKA_LISTENERS=PLAINTEXT://:9092,BROKER://:9093,CONTROLLER://:9094`, otherwise the broker refuses to start (advertised.listeners cannot use 0.0.0.0).
+- Mockito is loaded as a -javaagent in the order-service surefire run to avoid the dynamic self-attach warning.
+- Run the end-to-end test against the running stack: `E2E=true mvn -pl replay-tool test -Dtest=EndToEndTest`.
