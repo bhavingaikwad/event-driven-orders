@@ -25,3 +25,10 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.21.0
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "4318:4318"

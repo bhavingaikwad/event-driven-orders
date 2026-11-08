@@ -49,3 +49,26 @@ spring:
       observation-enabled: true
     listener:
       observation-enabled: true
+
+---
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
+  otlp:
+    metrics:
+      export:
+        enabled: false
+logging:
+  pattern:
+    correlation: "[%X{traceId:-},%X{correlationId:-}] "
+  file:
+    name: ../logs/order-service.log
+
+---
+management.observations.enable.tasks.scheduled.execution: false

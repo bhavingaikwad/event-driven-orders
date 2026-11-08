@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Publishes outbox rows to Kafka in order. Stops at the first failure so per-order ordering is kept.
  * Delivery is at-least-once: a crash after send but before markPublished causes a re-send.
+ * Each send runs inside the trace that wrote the row, so one order stays one trace.
  */
 @Component
 public class OutboxRelay {
@@ -25,22 +26,24 @@ public class OutboxRelay {
     private final OutboxRepository outbox;
     private final KafkaEventSender sender;
     private final int batchSize;
+    private final TraceContextCodec traces;
     private final Counter publishedCounter;
     private final Timer sendTimer;
     private final Timer cycleTimer;
 
-    /** For unit tests: metrics go to a throwaway registry. */
+    /** For unit tests: metrics go to a throwaway registry and tracing is off. */
     public OutboxRelay(OutboxRepository outbox, KafkaEventSender sender, int batchSize) {
-        this(outbox, sender, batchSize, new SimpleMeterRegistry());
+        this(outbox, sender, batchSize, new SimpleMeterRegistry(), TraceContextCodec.disabled());
     }
 
     @Autowired
     public OutboxRelay(OutboxRepository outbox, KafkaEventSender sender,
                        @Value("${outbox.relay.batch-size:200}") int batchSize,
-                       MeterRegistry registry) {
+                       MeterRegistry registry, TraceContextCodec traces) {
         this.outbox = outbox;
         this.sender = sender;
         this.batchSize = batchSize;
+        this.traces = traces;
         this.publishedCounter = Counter.builder("outbox.relay.published")
                 .description("Outbox rows published to Kafka").register(registry);
         this.sendTimer = Timer.builder("outbox.relay.send")
@@ -60,7 +63,8 @@ public class OutboxRelay {
         int published = 0;
         for (OutboxRow row : rows) {
             try {
-                sendTimer.record(() -> sender.sendAndWait(row.topic(), row.aggregateId().toString(), row.payload()));
+                sendTimer.record(() -> traces.runInContext(row.traceparent(),
+                        () -> sender.sendAndWait(row.topic(), row.aggregateId().toString(), row.payload())));
             } catch (RuntimeException e) {
                 log.warn("Relay stopped at outbox event {}: {}", row.id(), e.getMessage());
                 break;

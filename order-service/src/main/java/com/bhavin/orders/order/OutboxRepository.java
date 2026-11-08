@@ -1,5 +1,6 @@
 package com.bhavin.orders.order;
 
+import java.sql.Types;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -9,28 +10,31 @@ import org.springframework.stereotype.Repository;
 public class OutboxRepository {
 
     private final JdbcClient jdbc;
+    private final TraceContextCodec traces;
 
-    public OutboxRepository(JdbcClient jdbc) {
+    public OutboxRepository(JdbcClient jdbc, TraceContextCodec traces) {
         this.jdbc = jdbc;
+        this.traces = traces;
     }
 
     public void insert(UUID id, UUID aggregateId, String eventType, String topic, String payload) {
         jdbc.sql("""
-                INSERT INTO outbox_events (id, aggregate_id, event_type, topic, payload)
-                VALUES (:id, :aggregateId, :eventType, :topic, :payload)
+                INSERT INTO outbox_events (id, aggregate_id, event_type, topic, payload, traceparent)
+                VALUES (:id, :aggregateId, :eventType, :topic, :payload, :traceparent)
                 """)
                 .param("id", id)
                 .param("aggregateId", aggregateId)
                 .param("eventType", eventType)
                 .param("topic", topic)
                 .param("payload", payload)
+                .param("traceparent", traces.capture(), Types.VARCHAR)
                 .update();
     }
 
     /** Locks the oldest unpublished rows. SKIP LOCKED lets several relay instances run side by side. */
     public List<OutboxRow> lockUnpublished(int limit) {
         return jdbc.sql("""
-                SELECT id, aggregate_id, event_type, topic, payload
+                SELECT id, aggregate_id, event_type, topic, payload, traceparent
                 FROM outbox_events
                 WHERE published_at IS NULL
                 ORDER BY seq
@@ -43,7 +47,8 @@ public class OutboxRepository {
                         rs.getObject("aggregate_id", UUID.class),
                         rs.getString("event_type"),
                         rs.getString("topic"),
-                        rs.getString("payload")))
+                        rs.getString("payload"),
+                        rs.getString("traceparent")))
                 .list();
     }
 

@@ -54,3 +54,11 @@
 - Runs: 1x, 60x, 600x and 3600x (measured numbers are in RESUME_FACTS.md).
 - Tests: 61 total (contracts 9, order 19, inventory 9, payment 14, replay-tool 10).
 - Known gaps: PUT /admin/stock has no authentication and must be disabled before any public deploy (M16). Time to final status is measured by polling, so it is accurate to about +/- 0.5 s. Orders accumulate in the databases between runs. The bottleneck at 3600x is not identified yet (M11).
+
+## M11 observability: DONE
+- Metrics: Micrometer to Prometheus (v3.13.2) to Grafana (12.4.4). The 12-panel "Order pipeline" dashboard is provisioned from the repo (observability/grafana/dashboards).
+- Custom metrics: saga outcomes (counted after commit), outbox backlog and oldest-row age, relay rows/s and ack time, payment outcomes, circuit breaker state.
+- Tracing: OpenTelemetry to Jaeger 2.21.0. The outbox stores the W3C traceparent (Flyway V4) and the relay restores it, so one order is one trace: 15 spans across 3 services.
+- Logs: correlationId in every Kafka-handled log line (RecordInterceptor), written to logs/ (gitignored).
+- Tests: 71.
+- Known gaps: Prometheus scrapes appear as separate one-span traces; sampling is 100% (lower it for M14); Jaeger keeps traces in memory only; HTTP-request log lines carry traceId but not correlationId; the relay still sends row by row (measured ceiling about 150 rows/s, pipelining is the next step if M14 hits it); the relay polls the database 20 times a second even when idle; Grafana password is local-only.

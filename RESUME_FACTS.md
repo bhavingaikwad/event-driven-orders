@@ -79,3 +79,13 @@ Stock levels and payment outcomes are SIMULATED.
 - No new dead-letter messages during the 2,504 orders. The circuit breaker stayed CLOSED.
 - Time from send to final status (polled, +/- 0.5 s), p95: 1.18 s at 1x (9 orders), 0.96 s at 60x (163 orders, 1.4 orders/s), 1.07 s at 600x (1,166 orders, 8.1 orders/s).
 - At 3600x (1,166 orders in 24 s, 48.6 orders/s) the pipeline queued on a laptop: p50 5.78 s, p95 11.99 s, max 12.76 s, all orders still completed. Bottleneck not yet identified.
+
+## M11 measured facts (one MacBook Air; stock and payment outcomes are SIMULATED)
+- Replaying one real Olist day (1,166 orders) at 3600x: p95 time-to-final was 12.05 s and 12.99 s in two runs.
+- Found the cause from metrics: consumer lag 0, listener threads under 1 busy, JVM CPU at most 7%, but the outbox backlog reached 674 to 766 rows and the oldest row waited 12.3 s.
+- Measured the relay ceiling at 60 rows/s (6.8 ms per Kafka ack, 500 ms idle gap per 50-row batch). The model 50 / (50 x 0.0068 + 0.5) predicted 59.5.
+- Changed the poll to 50 ms and the batch to 200: peak relay rate 123 to 134 rows/s, backlog at most 171 rows, oldest row at most 1.13 s, p95 time-to-final 1.04 s, 1.41 s and 1.09 s in three runs. The last run had tracing at 100% sampling, so no tracing cost was measurable.
+- A saga outcome counter read 790 confirmed when only 786 orders were confirmed (it counted rolled-back transactions). After counting only after commit, saga confirmed equals payments approved (814 = 814) and the three outcomes add up to 1,166.
+- One order is one trace: 15 spans across 3 services, root http post /orders.
+- Observability stack cost: about 1.58 GB of images (Prometheus 336 MB, Grafana 1.08 GB, Jaeger 164 MB) and about 280 MiB of RAM.
+- Caveats: single laptop, one machine sharing Kafka, Postgres, DynamoDB Local, three JVMs and the replay tool; time-to-final is accurate to about 0.5 s (polling).
