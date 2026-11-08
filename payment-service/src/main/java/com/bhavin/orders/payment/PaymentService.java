@@ -21,11 +21,14 @@ public class PaymentService {
     private final PaymentRepository repository;
     private final PaymentSimulator simulator;
     private final GatewayCircuitBreaker gateway;
+    private final PaymentMetrics metrics;
 
-    public PaymentService(PaymentRepository repository, PaymentSimulator simulator, GatewayCircuitBreaker gateway) {
+    public PaymentService(PaymentRepository repository, PaymentSimulator simulator,
+                          GatewayCircuitBreaker gateway, PaymentMetrics metrics) {
         this.repository = repository;
         this.simulator = simulator;
         this.gateway = gateway;
+        this.metrics = metrics;
     }
 
     /** Idempotent: the first decision for an order is stored and returned on every later call. */
@@ -50,6 +53,7 @@ public class PaymentService {
                 decision.approved() ? null : decision.reason());
 
         if (repository.insertIfAbsent(payment)) {
+            metrics.record(decision);
             return payment;
         }
         return repository.findByOrderId(orderId).orElseThrow(
