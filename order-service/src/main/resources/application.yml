@@ -34,3 +34,18 @@ spring:
 orders:
   # OUTBOX = correct. DUAL_WRITE = deliberately unsafe, kept only to demonstrate the failure.
   publish-mode: OUTBOX
+
+---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+management.metrics.distribution.percentiles-histogram.http.server.requests: true
+management.metrics.distribution.percentiles-histogram.spring.kafka.listener: true
+spring:
+  kafka:
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
