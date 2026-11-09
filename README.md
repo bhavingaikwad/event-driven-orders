@@ -126,6 +126,12 @@ terraform destroy -var "my_ip_cidr=$(curl -s https://checkip.amazonaws.com)/32"
 
 It was applied and destroyed once; it is not left running. It uses your AWS account and costs money while it exists.
 
+## Design decisions and operations
+
+- [Architecture decision records](docs/adr/README.md): circuit breaker fail-fast, blocking retries then dead letter, dedupe on business identity, no outbox in inventory and payment.
+- [Runbook](docs/runbook.md): what to check and do for each failure that was drilled.
+- [Incident reports](docs/incidents/): four chaos drills with hypothesis, timeline and measured results.
+
 ## Repository layout
 
 | Path | Purpose |
