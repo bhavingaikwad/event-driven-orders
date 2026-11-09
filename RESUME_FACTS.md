@@ -136,3 +136,8 @@ Stock levels and payment outcomes are SIMULATED.
 - Single run: boot to healthy order-service about 9-10 min; E2E invariant held on the deployed system (30 concurrent orders, stock 10: 10 confirmed, 20 cancelled, 0 unfinished).
 - Hit and fixed a real constraint: free-tier plan rejected the original instance type; chose an eligible 8 GiB type after querying the API.
 - LIMITS (do not overstate): single EC2 instance, not production. Kafka is one broker with replication factor 1. DynamoDB is DynamoDB Local in Docker, not the AWS service. Stock and payment outcomes are SIMULATED. No TLS or authentication; `/admin/stock` is reachable only from one IP. No load test or observability on AWS. Cost not yet read from billing.
+
+## Claim guardrails (final)
+- Say: saga with compensation, transactional outbox, idempotent consumers, dead-letter topics with replay, circuit breaker, Testcontainers integration tests, chaos drills with incident reports, open-loop load test, Terraform demo deploy.
+- Always state: stock and payment outcomes are simulated; DynamoDB is DynamoDB Local; numbers are single runs on one laptop; load latency is API acceptance latency, not end-to-end.
+- Do not claim: exactly-once delivery, production readiness, multi-broker Kafka, DynamoDB on AWS, end-to-end handling of 100 orders/s, any load result on AWS.

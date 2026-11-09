@@ -130,3 +130,9 @@ GitHub Actions workflow `.github/workflows/ci.yml`: on push to main and on pull 
 - Black-box E2E run from my laptop against the EC2 box: stock=10 orders=30 confirmed=10 cancelled=20 notFinished=0 (test wall time 7.3 s, includes internet latency, single run).
 - `terraform destroy`: 9 destroyed. Afterward no Terraform state, no instances and no volumes in us-east-2. Instance ran about 11 minutes.
 - Not measured: load on AWS, cost (estimated from the hourly rate, not read from billing yet), the 4 h self-terminate timer (never reached, teardown was manual), observability stack on AWS (not deployed, no tracing there).
+
+## M17: documentation (done)
+- README rewritten: scope and simulated parts first, architecture diagram, reliability table with evidence, measured results with caveats, known limitations, run/test/AWS instructions. CI badge added.
+- Four ADRs in docs/adr (circuit breaker fail-fast, blocking retries then DLT, dedupe on business identity, no outbox in inventory/payment). Written after implementation and labeled as such.
+- docs/runbook.md covers each drilled failure using real commands and metric names.
+- Not done: cropped screenshots of Grafana, Jaeger and the CI run.
