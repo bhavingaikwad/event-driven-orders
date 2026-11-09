@@ -94,3 +94,22 @@ Four planned failures on the local stack, each with an incident report in `docs/
 | INC-004 | Postgres stopped about 89 s | API 500 after 30 s, health hung, events blocked in retries and completed after restart, no dead letters |
 
 Gaps found: no alert on outbox backlog or consumer lag; health checks hang when the database is down; duplicate-resend window after a crash not measured; outages longer than the retry window not tested.
+
+## M14 - Load test (done)
+
+Open-loop k6 test (`loadtest/orders.js`, constant arrival rate), one run of 60 s per stage, on a laptop with k6 and all services on the same machine. Tracing sampling lowered to 1% (`MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.01`). Stock and payment outcomes are SIMULATED. "1x" = 10 orders/s is a baseline I chose, not measured real traffic. Latency below is API acceptance latency (HTTP 201 after the order and its outbox row commit), not end-to-end completion.
+
+| Stage | Offered rate | Requests | Failed | Median | p95 | p99 | Max | Peak outbox backlog | All orders finished after load stopped |
+|---|---|---|---|---|---|---|---|---|---|
+| 1x | 10/s | 600 | 0 | 6.77 ms | 13.7 ms | 24.6 ms | 115.9 ms | 2 rows | by the first poll (1 s) |
+| 5x | 50/s | 3,001 | 0 | 2.98 ms | 15.95 ms | 117.5 ms | 373.9 ms | 94 rows | within 2 s |
+| 10x | 100/s | 6,000 | 0 | 2.76 ms | 18.4 ms | 72.9 ms | 197.7 ms | at least 2,710 rows | 19 s (outbox fully drained after 32 s) |
+
+Reconciliation per stage: new orders equal requests, new payments equal new orders with distinct order IDs, and every order reached CONFIRMED or CANCELLED (10x: 4,838 CONFIRMED, 1,162 CANCELLED).
+
+Findings:
+- At 10x the outbox relay falls behind (backlog of at least 2,710 rows) while the API stays fast; measured drain of about 120 rows/s over the last 10 s. Consistent with the relay being the first bottleneck; per-stage timing was not measured.
+- p99 latency across stages is not monotonic (24.6, 117.5, 72.9 ms); single runs, treat as noise.
+- Backlog sampled every 2 s, so peaks are lower bounds.
+
+Reproduce one stage: `k6 run --quiet -e RATE=100 -e DURATION=60s loadtest/orders.js` (seed stock first: `PUT /admin/stock {"load-1":1000000}` on inventory-service).

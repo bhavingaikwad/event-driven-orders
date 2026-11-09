@@ -113,3 +113,11 @@ Stock levels and payment outcomes are SIMULATED.
 - All results are single runs on a laptop with simulated stock and payments.
 - Not measured: drain time in drills 2 and 3; whether a crash can resend a row Kafka already accepted; outages longer than about 90 s.
 - Gaps found, not fixed: no alert on outbox backlog or consumer lag; health checks hang when the database is down.
+
+## M14 - Load test (measured facts only)
+
+- Open-loop k6 test at 10, 50 and 100 orders/s (60 s per stage, one run each, single laptop, k6 on the same machine, tracing sampled at 1%, simulated stock and payments).
+- At 100 orders/s: 6,000 orders accepted, 0 failed requests, API p95 18.4 ms and p99 72.9 ms. All 6,000 reached CONFIRMED or CANCELLED, 6,000 distinct payments created, nothing lost or duplicated.
+- The outbox backlog grew to at least 2,710 rows at 100 orders/s; all in-flight orders finished 19 s after the load stopped and the backlog fully drained after 32 s. Measured relay drain about 120 rows/s. Consistent with the outbox relay being the first bottleneck (not proven by per-stage timing).
+- At 10 and 50 orders/s: 0 failures, backlog peaks of 2 and 94 rows, all orders finished within 2 s of load stopping.
+- Caveats: "1x" (10 orders/s) is a chosen baseline, not real traffic; latency is API acceptance latency, not end-to-end; peaks sampled every 2 s; p99 across stages is not monotonic, so treat as noise.
