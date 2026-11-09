@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test (the end-to-end test is skipped: E2E is not set)
+        run: mvn -B -ntp verify
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "| Module | Line coverage |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for m in contracts order-service inventory-service payment-service replay-tool; do
+            f="$m/target/site/jacoco/jacoco.csv"
+            if [ -f "$f" ]; then
+              awk -F, -v n="$m" 'NR>1{lm+=$8;lc+=$9} END{printf "| %s | %.1f%% (%d/%d) |\n", n, 100*lc/(lm+lc), lc, lm+lc}' "$f" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports
+            **/target/site/jacoco
+          retention-days: 7
