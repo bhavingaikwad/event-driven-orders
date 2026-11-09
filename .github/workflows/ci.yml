@@ -25,7 +25,7 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build and test (the end-to-end test is skipped: E2E is not set)
+      - name: Build and test
         run: mvn -B -ntp verify
 
       - name: Coverage summary
