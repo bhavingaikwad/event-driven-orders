@@ -113,3 +113,12 @@ Findings:
 - Backlog sampled every 2 s, so peaks are lower bounds.
 
 Reproduce one stage: `k6 run --quiet -e RATE=100 -e DURATION=60s loadtest/orders.js` (seed stock first: `PUT /admin/stock {"load-1":1000000}` on inventory-service).
+
+## M15 - CI (done)
+
+GitHub Actions workflow `.github/workflows/ci.yml`: on push to main and on pull requests it sets up Java 21 (Temurin) with a Maven cache, runs `mvn -B -ntp verify` (the Testcontainers tests run on the Docker-enabled GitHub runner), writes a per-module line-coverage table to the run summary, and uploads surefire and JaCoCo reports as an artifact (7 days). The end-to-end test is skipped in CI because `E2E` is not set.
+
+- Run #1 failed: invalid YAML (an unquoted colon in a step name). Fixed in the next commit.
+- Run #2 passed: total 2m 27s (build job 2m 23s), artifact `test-reports` 1.05 MB, coverage table identical to the local run (contracts 95.2%, order-service 87.7%, inventory-service 82.4%, payment-service 84.8%, replay-tool 69.3%).
+- No automatic deploy: deployment to AWS stays a manual step (M16).
+- Notice from GitHub: `ubuntu-latest` migrates to Ubuntu 26 starting 2026-10-19; consider pinning `ubuntu-24.04`.

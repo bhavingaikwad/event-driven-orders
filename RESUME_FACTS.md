@@ -121,3 +121,10 @@ Stock levels and payment outcomes are SIMULATED.
 - The outbox backlog grew to at least 2,710 rows at 100 orders/s; all in-flight orders finished 19 s after the load stopped and the backlog fully drained after 32 s. Measured relay drain about 120 rows/s. Consistent with the outbox relay being the first bottleneck (not proven by per-stage timing).
 - At 10 and 50 orders/s: 0 failures, backlog peaks of 2 and 94 rows, all orders finished within 2 s of load stopping.
 - Caveats: "1x" (10 orders/s) is a chosen baseline, not real traffic; latency is API acceptance latency, not end-to-end; peaks sampled every 2 s; p99 across stages is not monotonic, so treat as noise.
+
+## M15 - CI (measured facts only)
+
+- GitHub Actions builds and tests every push and pull request: Java 21, full `mvn verify` including Testcontainers integration tests on a GitHub-hosted runner; one successful run took 2m 27s.
+- Each run publishes a per-module coverage table and the test and coverage reports as an artifact.
+- The black-box end-to-end test is excluded from CI (it needs a running stack).
+- No automatic deployment is configured.
