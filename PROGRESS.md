@@ -122,3 +122,11 @@ GitHub Actions workflow `.github/workflows/ci.yml`: on push to main and on pull 
 - Run #2 passed: total 2m 27s (build job 2m 23s), artifact `test-reports` 1.05 MB, coverage table identical to the local run (contracts 95.2%, order-service 87.7%, inventory-service 82.4%, payment-service 84.8%, replay-tool 69.3%).
 - No automatic deploy: deployment to AWS stays a manual step (M16).
 - Notice from GitHub: `ubuntu-latest` migrates to Ubuntu 26 starting 2026-10-19; consider pinning `ubuntu-24.04`.
+
+## M16: AWS demo deploy (Terraform) - DONE 2026-11-09
+- Terraform (aws provider v6.72.0): 9 resources in us-east-2 default VPC: 1 EC2 instance, 1 security group with 4 rules, 1 IAM role, 1 policy attachment, 1 instance profile.
+- First apply was rejected: this account is on the AWS Free Tier plan and `t4g.large` is not free-tier-eligible (InvalidParameterCombination). Queried `describe-instance-types` with `free-tier-eligible=true` and switched to `m7i-flex.large` (2 vCPU, 8 GiB, x86_64). AMI architecture became a variable; the Compose binary is chosen with `uname -m` on the box.
+- Result: order-service health 200 at 14:08:29, about 9-10 min after launch (approximate, apply time not recorded to the second); inventory and payment health UP.
+- Black-box E2E run from my laptop against the EC2 box: stock=10 orders=30 confirmed=10 cancelled=20 notFinished=0 (test wall time 7.3 s, includes internet latency, single run).
+- `terraform destroy`: 9 destroyed. Afterward no Terraform state, no instances and no volumes in us-east-2. Instance ran about 11 minutes.
+- Not measured: load on AWS, cost (estimated from the hourly rate, not read from billing yet), the 4 h self-terminate timer (never reached, teardown was manual), observability stack on AWS (not deployed, no tracing there).

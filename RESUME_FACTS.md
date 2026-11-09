@@ -128,3 +128,11 @@ Stock levels and payment outcomes are SIMULATED.
 - Each run publishes a per-module coverage table and the test and coverage reports as an artifact.
 - The black-box end-to-end test is excluded from CI (it needs a running stack).
 - No automatic deployment is configured.
+
+## M16: AWS demo deploy (real, measured)
+- Terraform defines the whole demo environment (9 AWS resources, 4 files) and `terraform destroy` removes it; verified nothing left behind.
+- Security by construction: only one /32 address may reach ports 8081-8083 (a validation rule rejects anything else, including 0.0.0.0/0); no SSH port; instance metadata v2 required; encrypted root volume that is deleted on termination.
+- Cost guard: instance shutdown behavior is `terminate` plus a 240 minute shutdown timer started first in the boot script (timer itself not exercised).
+- Single run: boot to healthy order-service about 9-10 min; E2E invariant held on the deployed system (30 concurrent orders, stock 10: 10 confirmed, 20 cancelled, 0 unfinished).
+- Hit and fixed a real constraint: free-tier plan rejected the original instance type; chose an eligible 8 GiB type after querying the API.
+- LIMITS (do not overstate): single EC2 instance, not production. Kafka is one broker with replication factor 1. DynamoDB is DynamoDB Local in Docker, not the AWS service. Stock and payment outcomes are SIMULATED. No TLS or authentication; `/admin/stock` is reachable only from one IP. No load test or observability on AWS. Cost not yet read from billing.
